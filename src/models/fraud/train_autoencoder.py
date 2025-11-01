@@ -130,8 +130,9 @@ def main() -> None:
     entity_valid = entity_series.iloc[X_valid.index.to_numpy()]
 
     # Only legitimate transactions from training set are used to fit the autoencoder.
-    legit_mask = y_train_full == 0
-    X_train_legit = X_train_full[legit_mask]
+    y_train_array = y_train_full.to_numpy()
+    legit_mask = y_train_array == 0
+    X_train_legit = X_train_full.iloc[legit_mask]
 
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train_legit)
@@ -186,7 +187,8 @@ def main() -> None:
     valid_tensor = torch.tensor(X_valid_scaled, dtype=torch.float32).to(device)
     valid_errors = reconstruction_errors(model, valid_tensor)
 
-    metrics = compute_metrics(valid_errors, y_valid.to_numpy(), threshold)
+    y_valid_array = y_valid.to_numpy()
+    metrics = compute_metrics(valid_errors, y_valid_array, threshold)
     metrics_path = args.output_dir / "metrics.json"
     metrics_path.write_text(json.dumps(metrics, indent=2))
 
@@ -196,7 +198,7 @@ def main() -> None:
     recon_df = pd.DataFrame(
         {
             "entity_id": entity_valid.values,
-            "label": y_valid.to_numpy(),
+            "label": y_valid_array,
             "reconstruction_error": valid_errors,
             "prediction": (valid_errors >= threshold).astype(int),
         }
