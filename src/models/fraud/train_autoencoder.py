@@ -127,7 +127,7 @@ def main() -> None:
     X_train_full, X_valid, y_train_full, y_valid = stratified_split(
         features, labels, test_size=0.2, random_state=args.random_state
     )
-    entity_valid = entity_series.loc[X_valid.index]
+    entity_valid = entity_series.iloc[X_valid.index.to_numpy()]
 
     # Only legitimate transactions from training set are used to fit the autoencoder.
     legit_mask = y_train_full == 0

@@ -82,7 +82,7 @@ def main() -> None:
         features, labels, test_size=args.test_size, random_state=args.random_state
     )
 
-    entity_valid = entity_series.loc[X_valid.index]
+    entity_valid = entity_series.iloc[X_valid.index.to_numpy()]
     pos_weight = (len(y_train) - y_train.sum()) / y_train.sum()
 
     clf = XGBClassifier(
