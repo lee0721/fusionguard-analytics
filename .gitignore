@@ -17,6 +17,7 @@ data/processed/
 data/interim/
 data/feature_store.parquet/
 feature_store/
+artifacts/
 
 # ML tooling
 mlruns/
