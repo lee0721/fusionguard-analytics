@@ -15,6 +15,7 @@ env/
 data/raw/
 data/processed/
 data/interim/
+data/feature_store.parquet/
 feature_store/
 
 # ML tooling
