@@ -67,18 +67,14 @@ python -m src.models.fraud.explain_xgboost \
 - Top ranked SHAP features (|mean SHAP|): V14, V4, V12, V10, V3, reflecting strong influence of anonymised PCA components on predictions.
 
 ## Extended Evaluation
-- Run the extended evaluation utility to derive calibration plots and threshold recommendations:
-  ```bash
-  python -m src.models.fraud.evaluate_extended \
-    --xgb-predictions artifacts/fraud/xgboost/validation_predictions.csv \
-    --autoencoder-scores artifacts/fraud/autoencoder/validation_scores.csv \
-    --output-dir artifacts/fraud/evaluation
-  ```
-- Generated assets:
-  - `artifacts/fraud/evaluation/xgboost_calibration.png`, `autoencoder_calibration.png`
-  - Threshold sweep tables (`xgboost_threshold_metrics.csv`, `autoencoder_threshold_metrics.csv`)
-  - `artifacts/fraud/evaluation/evaluation_extended.json` summarising ROC/AUCPR and best threshold settings.
-- Incorporate the recommended thresholds into alerting configs and MLOps pipeline to align with business budgets.
+- Extended evaluation artifacts live in `artifacts/fraud/evaluation/` (generated via `python -m src.models.fraud.evaluate_extended ...`):
+  - Calibration plots: `xgboost_calibration.png`, `autoencoder_calibration.png`
+  - Threshold sweep tables: `xgboost_threshold_metrics.csv`, `autoencoder_threshold_metrics.csv`
+  - Summary JSON: `evaluation_extended.json`
+- Key findings (validation set):
+  - **XGBoost:** ROC AUC 0.9768, AUCPR 0.8797. Best F1 at threshold **0.95** (precision 0.94, recall 0.83). Suitable for high-precision alerting; tune threshold between 0.90–0.97 depending on alert budget.
+  - **Autoencoder:** ROC AUC 0.9617, AUCPR 0.6433. Best F1 at reconstruction-error threshold **0.1173** (precision 0.81, recall 0.47). Use as high-recall pre-filter feeding XGBoost or manual review.
+- Integrate these thresholds into `mlops/train_pipeline.py` (or Prefect/MLflow configs) so retraining runs automatically persist the recommended alert settings.
 
 ## Serving Summary
 - CPU XGBoost remains the most cost-effective for online inference (≈$0.000064 per 1M predictions at ~26 ms / 10k batch).
