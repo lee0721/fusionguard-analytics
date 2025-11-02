@@ -43,13 +43,18 @@ FusionGuard Analytics demonstrates an end-to-end workflow for credit card fraud 
 
 - **Step 3 – EDA:** Both fraud and churn notebooks executed with inline outputs and exported HTML reports; candidate data quality checks gathered in `docs/data_quality_checks.md`.
 - **Step 4 – Data Engineering:** PySpark pipeline (`src/data/build_feature_store.py`) generates processed parquet datasets, a reusable `data/feature_store.parquet`, and bias metrics in `data/processed/data_bias_report.json`.
+- **Step 5 – Fraud Modelling:** XGBoost baseline and PyTorch autoencoder trained using `src/models/fraud/`; metrics and inference artifacts live in `artifacts/fraud/`, and SHAP explainability exports plus the written model card are captured in `docs/assets/fraud/` and `docs/fraud_model_card.md`.
 
-Track ongoing milestones and environment notes in `docs/progress_update.md`.
+### Recent Results (Step 5)
+- XGBoost: precision 0.8817, recall 0.8367, F1 0.8586, ROC AUC 0.9768, AUCPR 0.8797.
+- Autoencoder: precision 0.0539, recall 0.8571, F1 0.1015, ROC AUC 0.9617, AUCPR 0.6433 (high-recall anomaly filter).
+- Key SHAP features: V14, V4, V12, V10, V3, indicating which anonymised PCA components drive credit-card fraud alerts.
 
 ## Documentation Index (`docs/`)
 
 - `data_sources.md` – Kaggle dataset references, licences, and download guidance.
 - `data_quality_checks.md` – Candidate validation rules to be implemented with Great Expectations.
-- `progress_update.md` – Snapshot of completed steps, how to rerun key scripts, and virtual-environment caveats.
+- `fraud_model_card.md` – Detailed fraud modelling summary, metrics, and SHAP insights (Step 5 deliverable).
+- `assets/fraud/` – Generated SHAP charts (`xgboost_shap_importance.png`, `xgboost_shap_summary.png`) and tabular importance export for reporting.
 
 Additional documentation (Responsible AI, executive summary, etc.) will be added as the project advances.
