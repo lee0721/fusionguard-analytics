@@ -22,5 +22,3 @@ FusionGuard Analytics demonstrates an end-to-end workflow for credit card fraud 
 8. **MLOps & Automation** – Leverage MLflow, Prefect/Airflow, Great Expectations, and Docker; prepare train/deploy pipelines; target low-cost Cloud Run deployment.
 9. **Monitoring & Responsible AI** – Implement data/ performance drift detection (`src/monitoring/`); prototype dashboard (Streamlit/Panel); author `docs/responsible_ai.md`.
 10. **Demo & Docs** – Finalise README, architecture visuals, reproduction guide, pitch deck (`slides/`), exec summary, and zero-cost playbook; produce video/GIF walkthrough.
-
-**Next Suggested Steps:** Finalise Steps 1–3 environment & EDA on HPC, set up version control/issue tracking, then proceed iteratively through the roadmap. Continuous support available for deeper dives into any step.
