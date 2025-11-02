@@ -80,6 +80,11 @@ python -m src.models.fraud.explain_xgboost \
   - `artifacts/fraud/evaluation/evaluation_extended.json` summarising ROC/AUCPR and best threshold settings.
 - Incorporate the recommended thresholds into alerting configs and MLOps pipeline to align with business budgets.
 
+## Serving Summary
+- CPU XGBoost remains the most cost-effective for online inference (≈$0.000064 per 1M predictions at ~26 ms / 10k batch).
+- Autoencoder is extremely fast even on CPU (~3.5 ms / 10k batch); GPU mode (0.30 ms / 10k batch) is ~100× faster but ~14× more expensive.
+- Full benchmarking details, cost tables, and methodology are maintained in `docs/fraud_serving.md`.
+
 ## Operational Notes
 - **Class Imbalance:** Highly skewed; `scale_pos_weight` and AUCPR are critical metrics.
 - **Thresholding:** Autoencoder threshold defaults to the 97.5th percentile of training reconstruction error (override with `--threshold-percentile`).

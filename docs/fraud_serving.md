@@ -24,13 +24,17 @@ Both runs load the feature store, perform warm-up, and report average latency al
 
 ## Latest Benchmark Snapshot
 
-| Model / Device | Mean Latency (ms) | Median Latency (ms) | Throughput (pred/s) | Notes |
-|----------------|------------------|---------------------|---------------------|-------|
-| XGBoost (CPU)  | _pending_        | _pending_           | _pending_           | Single-thread hist tree |
-| Autoencoder (CPU) | _pending_     | _pending_           | _pending_           | CPU fallback baseline |
-| Autoencoder (GPU) | _pending_     | _pending_           | _pending_           | Measured on CREATE GPU node |
+| Model / Device      | Mean Latency (ms) | Median Latency (ms) | Throughput (pred/s) | Cost / 1M preds* | Notes |
+|---------------------|------------------|---------------------|---------------------|------------------|-------|
+| XGBoost (CPU)       | 26.58            | 26.39               | 376,250             | ~$0.000064       | Single-thread hist tree |
+| Autoencoder (CPU)   | 3.53             | 3.44                | 2,832,766           | ~$0.000009       | CPU fallback baseline |
+| XGBoost (GPU)       | 22.06            | 22.00               | 453,301             | ~$0.0088         | CUDA inference on CREATE GPU node |
+| Autoencoder (GPU)   | 0.30             | 0.28                | 32,806,786          | ~$0.00012        | CUDA-accelerated reconstruction error |
 
-> Update the table after running the commands above by reading the JSON files and converting seconds to milliseconds (`ms = seconds * 1000`). A helper snippet:
+_\*Assumes USD 2.4 × 10⁻⁵ per vCPU-second and USD 4 × 10⁻³ per GPU-second (A10G estimate)._  
+Latency values come from 10,000-record batches; cost per 1 M predictions uses `mean_seconds / 10_000 * 1_000_000 × rate`.
+
+For convenience, convert the JSON outputs with:
 
 ```bash
 python - <<'PY'
@@ -55,6 +59,6 @@ PY
 
 Document key figures inside `docs/fraud_model_card.md` (serving section) once benchmarks are collected. Include:
 
-- Latency & throughput comparison.
-- Break-even point where GPU overtakes CPU in cost-per-1M predictions.
-- Deployment recommendation (e.g., XGBoost for online scoring, autoencoder GPU for nightly batch anomaly sweeps).
+- Latency & throughput highlights (CPU vs GPU).
+- Platform cost comparison (per million predictions) to identify when GPU acceleration is justified.
+- Deployment recommendation: XGBoost remains most economical on CPU for online scoring; autoencoder GPU mode is ideal for massive offline sweeps when ultra-low latency is required or when GPU capacity is already provisioned.
