@@ -25,6 +25,28 @@
   - Metrics: `artifacts/fraud/autoencoder/metrics.json`
   - Validation scores: `artifacts/fraud/autoencoder/validation_scores.csv`
 
+### Reproduction Commands
+From the project root (`~/fusionguard-analytics`) on the HPC allocation:
+
+```bash
+# Request GPU session beforehand, e.g.
+# srun --pty --partition=gpu --gres=gpu:1 --cpus-per-task=8 --mem=32G --time=02:00:00 bash
+
+python -m src.models.fraud.train_xgboost \
+  --feature-store data/feature_store.parquet \
+  --output-dir artifacts/fraud/xgboost
+
+python -m src.models.fraud.train_autoencoder \
+  --feature-store data/feature_store.parquet \
+  --output-dir artifacts/fraud/autoencoder \
+  --device cuda
+
+python -m src.models.fraud.explain_xgboost \
+  --feature-store data/feature_store.parquet \
+  --model-path artifacts/fraud/xgboost/xgboost_model.json \
+  --output-dir docs/assets/fraud
+```
+
 ## Evaluation Summary
 
 | Model       | Precision | Recall | F1    | ROC AUC | Average Precision (AUCPR) |
