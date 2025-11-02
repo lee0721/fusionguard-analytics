@@ -10,51 +10,17 @@ FusionGuard Analytics demonstrates an end-to-end workflow for credit card fraud 
 - Notebooks for exploratory analysis (`notebooks/eda`)
 - Documentation (`docs`) covering data sources, responsible AI, and executive summaries
 
-## Repository Layout
+## Roadmap Overview
 
-- `data/raw/` – Kaggle source datasets (credit card fraud, bank churn) to be downloaded locally.
-- `data/processed/` – Spark-generated cleaned datasets (output by `build_feature_store.py`).
-- `src/data/` – Data engineering scripts; currently contains `build_feature_store.py` for feature store generation.
-- `src/models/` – Model training code (fraud detection, churn prediction).
-- `mlops/` – Pipelines and automation scaffolding (MLflow, Prefect/Airflow, deployment scripts).
-- `notebooks/` – Jupyter notebooks for exploratory data analysis and business insight development.
-- `docs/` – Project documentation (see below for details).
+1. **Project Bootstrap** – Plan repository (`data/raw`, `notebooks/eda`, `src/data`, `src/models`, `mlops`, `docs`); stand up Python env with pyspark, scikit-learn, xgboost, lightgbm, mlflow, fastapi, shap, great_expectations.
+2. **Gather Kaggle Data** – Request Kaggle API token; download `creditcardfraud` and `bank-customer-churn` datasets into `data/raw`; document licensing in `docs/data_sources.md`.
+3. **EDA & Data Quality** – Build fraud/churn notebooks under `notebooks/eda`; export HTML; list candidate checks for Great Expectations.
+4. **Data Engineering** – Use PySpark to clean raw data into `data/processed`; create `feature_store.parquet`; implement bias diagnostics (`data_bias_report.json`); script housed in `src/data/build_feature_store.py`.
+5. **Fraud Modelling** – Train XGBoost and PyTorch autoencoder (`src/models/fraud/`); evaluate Precision-Recall/AUCPR; generate SHAP explainability; summarise outcomes in `docs/fraud_model_card.md`.
+6. **Churn Modelling** – Train LightGBM/CatBoost churn models; deliver metrics, feature importances, and business insights.
+7. **Generative Module** – Build FastAPI endpoint using open LLM (llama.cpp/Mistral) for explanations and customer support; incorporate prompt safety, optional GPU fine-tune or RAG (faiss) for zero-cost.
+8. **MLOps & Automation** – Leverage MLflow, Prefect/Airflow, Great Expectations, and Docker; prepare train/deploy pipelines; target low-cost Cloud Run deployment.
+9. **Monitoring & Responsible AI** – Implement data/ performance drift detection (`src/monitoring/`); prototype dashboard (Streamlit/Panel); author `docs/responsible_ai.md`.
+10. **Demo & Docs** – Finalise README, architecture visuals, reproduction guide, pitch deck (`slides/`), exec summary, and zero-cost playbook; produce video/GIF walkthrough.
 
-## Getting Started
-
-1. **Create the Spark-friendly virtual environment** (the original `.venv` is unstable with PySpark):
-   ```bash
-   python3 -m venv .venv_spark
-   source .venv_spark/bin/activate
-   pip install pyspark pandas numpy
-   ```
-2. **Build processed datasets and feature store**:
-   ```bash
-   python src/data/build_feature_store.py \
-     --raw-dir data/raw \
-     --processed-dir data/processed \
-     --feature-store data/feature_store.parquet \
-     --bias-report data/processed/data_bias_report.json
-   ```
-   This produces cleaned parquet datasets, a consolidated feature store, and a class-imbalance report.
-3. **Explore the EDA outputs**: open `notebooks/eda/reports/churn_eda.html` and `notebooks/eda/reports/fraud_eda.html` in a browser, or launch Jupyter with the `.venv_spark` kernel.
-
-## Current Progress
-
-- **Step 3 – EDA:** Both fraud and churn notebooks executed with inline outputs and exported HTML reports; candidate data quality checks gathered in `docs/data_quality_checks.md`.
-- **Step 4 – Data Engineering:** PySpark pipeline (`src/data/build_feature_store.py`) generates processed parquet datasets, a reusable `data/feature_store.parquet`, and bias metrics in `data/processed/data_bias_report.json`.
-- **Step 5 – Fraud Modelling:** XGBoost baseline and PyTorch autoencoder trained using `src/models/fraud/`; metrics and inference artifacts live in `artifacts/fraud/`, and SHAP explainability exports plus the written model card are captured in `docs/assets/fraud/` and `docs/fraud_model_card.md`.
-
-### Recent Results (Step 5)
-- XGBoost: precision 0.8817, recall 0.8367, F1 0.8586, ROC AUC 0.9768, AUCPR 0.8797.
-- Autoencoder: precision 0.0539, recall 0.8571, F1 0.1015, ROC AUC 0.9617, AUCPR 0.6433 (high-recall anomaly filter).
-- Key SHAP features: V14, V4, V12, V10, V3, indicating which anonymised PCA components drive credit-card fraud alerts.
-
-## Documentation Index (`docs/`)
-
-- `data_sources.md` – Kaggle dataset references, licences, and download guidance.
-- `data_quality_checks.md` – Candidate validation rules to be implemented with Great Expectations.
-- `fraud_model_card.md` – Detailed fraud modelling summary, metrics, and SHAP insights (Step 5 deliverable).
-- `assets/fraud/` – Generated SHAP charts (`xgboost_shap_importance.png`, `xgboost_shap_summary.png`) and tabular importance export for reporting.
-
-Additional documentation (Responsible AI, executive summary, etc.) will be added as the project advances.
+**Next Suggested Steps:** Finalise Steps 1–3 environment & EDA on HPC, set up version control/issue tracking, then proceed iteratively through the roadmap. Continuous support available for deeper dives into any step.
