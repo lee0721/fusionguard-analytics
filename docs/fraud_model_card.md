@@ -87,7 +87,6 @@ python -m src.models.fraud.explain_xgboost \
 - **Acceleration:** Autoencoder supports GPU when available (`--device cuda`).
 - **Reproducibility:** Ensure feature store is regenerated on target hardware before training; random seeds default to 42.
 
-## Next Steps
-- Compare deployment cost/latency between XGBoost and autoencoder.
-- Integrate both outputs into `mlops/train_pipeline.py` for scheduled retraining.
-- Extend evaluation with calibration plots and threshold-optimization for business-defined alert budgets.
+## Future Enhancements
+- Explore deployment of the current benchmarked endpoints behind Prefect/MLflow jobs.
+- Evaluate GPU autoencoder at larger batch sizes for nightly anomaly sweeps.
