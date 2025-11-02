@@ -26,12 +26,15 @@
   - Validation scores: `artifacts/fraud/autoencoder/validation_scores.csv`
 
 ## Evaluation Summary
-> Populate after running the training scripts.
 
-| Model        | Precision | Recall | F1 | ROC AUC | Average Precision (AUCPR) |
-|--------------|-----------|--------|----|---------|---------------------------|
-| XGBoost      | TBD       | TBD    | TBD| TBD     | TBD                       |
-| Autoencoder  | TBD       | TBD    | TBD| TBD     | TBD                       |
+| Model       | Precision | Recall | F1    | ROC AUC | Average Precision (AUCPR) |
+|-------------|-----------|--------|-------|---------|---------------------------|
+| XGBoost     | 0.8817    | 0.8367 | 0.8586| 0.9768  | 0.8797                    |
+| Autoencoder | 0.0539    | 0.8571 | 0.1015| 0.9617  | 0.6433                    |
+
+**Observations**
+- Gradient-boosted trees achieve strong balance between precision and recall with AUCPR near 0.88, suitable for precision-critical alerting.
+- The autoencoder captures the majority of fraud cases (recall ~0.86) but with low precision; useful as a high-recall filter feeding a second-stage model.
 
 ## Explainability
 - Generate SHAP plots: `python src/models/fraud/explain_xgboost.py`
@@ -39,6 +42,7 @@
   - `xgboost_shap_importance.png`
   - `xgboost_shap_summary.png`
   - `xgboost_shap_importance.csv`
+- Top ranked SHAP features (|mean SHAP|): V14, V4, V12, V10, V3, reflecting strong influence of anonymised PCA components on predictions.
 
 ## Operational Notes
 - **Class Imbalance:** Highly skewed; `scale_pos_weight` and AUCPR are critical metrics.
