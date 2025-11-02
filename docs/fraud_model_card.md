@@ -66,6 +66,20 @@ python -m src.models.fraud.explain_xgboost \
   - `xgboost_shap_importance.csv`
 - Top ranked SHAP features (|mean SHAP|): V14, V4, V12, V10, V3, reflecting strong influence of anonymised PCA components on predictions.
 
+## Extended Evaluation
+- Run the extended evaluation utility to derive calibration plots and threshold recommendations:
+  ```bash
+  python -m src.models.fraud.evaluate_extended \
+    --xgb-predictions artifacts/fraud/xgboost/validation_predictions.csv \
+    --autoencoder-scores artifacts/fraud/autoencoder/validation_scores.csv \
+    --output-dir artifacts/fraud/evaluation
+  ```
+- Generated assets:
+  - `artifacts/fraud/evaluation/xgboost_calibration.png`, `autoencoder_calibration.png`
+  - Threshold sweep tables (`xgboost_threshold_metrics.csv`, `autoencoder_threshold_metrics.csv`)
+  - `artifacts/fraud/evaluation/evaluation_extended.json` summarising ROC/AUCPR and best threshold settings.
+- Incorporate the recommended thresholds into alerting configs and MLOps pipeline to align with business budgets.
+
 ## Operational Notes
 - **Class Imbalance:** Highly skewed; `scale_pos_weight` and AUCPR are critical metrics.
 - **Thresholding:** Autoencoder threshold defaults to the 97.5th percentile of training reconstruction error (override with `--threshold-percentile`).

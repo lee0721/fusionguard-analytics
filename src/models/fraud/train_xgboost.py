@@ -23,6 +23,93 @@ from xgboost import XGBClassifier
 from .data_utils import load_fraud_dataset, stratified_split
 
 
+def train_xgboost(
+    feature_store: Path,
+    output_dir: Path,
+    *,
+    test_size: float = 0.2,
+    random_state: int = 42,
+    max_depth: int = 6,
+    learning_rate: float = 0.1,
+    n_estimators: int = 600,
+    subsample: float = 0.8,
+    colsample_bytree: float = 0.8,
+    n_jobs: int = 8,
+    threshold: float = 0.5,
+) -> dict:
+    """Train an XGBoost model and persist artifacts."""
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    features, labels, entity_ids = load_fraud_dataset(feature_store)
+    entity_series = entity_ids.rename("entity_id")
+
+    X_train, X_valid, y_train, y_valid = stratified_split(
+        features, labels, test_size=test_size, random_state=random_state
+    )
+
+    entity_valid = entity_series.iloc[X_valid.index.to_numpy()]
+    pos_weight = (len(y_train) - y_train.sum()) / y_train.sum()
+
+    clf = XGBClassifier(
+        n_estimators=n_estimators,
+        learning_rate=learning_rate,
+        max_depth=max_depth,
+        subsample=subsample,
+        colsample_bytree=colsample_bytree,
+        objective="binary:logistic",
+        eval_metric="logloss",
+        scale_pos_weight=pos_weight,
+        tree_method="hist",
+        n_jobs=n_jobs,
+        random_state=random_state,
+    )
+
+    clf.fit(
+        X_train,
+        y_train,
+        eval_set=[(X_valid, y_valid)],
+        verbose=False,
+    )
+
+    y_valid_prob = clf.predict_proba(X_valid)[:, 1]
+    metrics = compute_metrics(y_valid.to_numpy(), y_valid_prob, threshold=threshold)
+
+    metrics_path = output_dir / "metrics.json"
+    metrics_path.write_text(json.dumps(metrics, indent=2))
+
+    prediction_df = pd.DataFrame(
+        {
+            "entity_id": entity_valid.values,
+            "label": y_valid.to_numpy(),
+            "probability": y_valid_prob,
+            "prediction": (y_valid_prob >= threshold).astype(int),
+        }
+    )
+    predictions_path = output_dir / "validation_predictions.csv"
+    prediction_df.to_csv(predictions_path, index=False)
+
+    model_path = output_dir / "xgboost_model.json"
+    clf.get_booster().save_model(model_path)
+
+    feature_importance = pd.Series(
+        clf.feature_importances_, index=X_train.columns, name="importance"
+    ).sort_values(ascending=False)
+    feature_importance_path = output_dir / "feature_importance.csv"
+    feature_importance.to_csv(feature_importance_path)
+
+    return {
+        "metrics": metrics,
+        "model": clf,
+        "artifact_paths": {
+            "metrics": metrics_path,
+            "model": model_path,
+            "predictions": predictions_path,
+            "feature_importance": feature_importance_path,
+        },
+    }
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train XGBoost fraud classifier.")
     parser.add_argument(
@@ -73,65 +160,23 @@ def compute_metrics(y_true: np.ndarray, y_prob: np.ndarray, threshold: float) ->
 
 def main() -> None:
     args = parse_args()
-    args.output_dir.mkdir(parents=True, exist_ok=True)
-
-    features, labels, entity_ids = load_fraud_dataset(args.feature_store)
-    entity_series = entity_ids.rename("entity_id")
-
-    X_train, X_valid, y_train, y_valid = stratified_split(
-        features, labels, test_size=args.test_size, random_state=args.random_state
-    )
-
-    entity_valid = entity_series.iloc[X_valid.index.to_numpy()]
-    pos_weight = (len(y_train) - y_train.sum()) / y_train.sum()
-
-    clf = XGBClassifier(
-        n_estimators=args.n_estimators,
-        learning_rate=args.learning_rate,
+    result = train_xgboost(
+        feature_store=args.feature_store,
+        output_dir=args.output_dir,
+        test_size=args.test_size,
+        random_state=args.random_state,
         max_depth=args.max_depth,
+        learning_rate=args.learning_rate,
+        n_estimators=args.n_estimators,
         subsample=args.subsample,
         colsample_bytree=args.colsample_bytree,
-        objective="binary:logistic",
-        eval_metric="logloss",
-        scale_pos_weight=pos_weight,
-        tree_method="hist",
         n_jobs=args.n_jobs,
-        random_state=args.random_state,
+        threshold=args.threshold,
     )
 
-    clf.fit(
-        X_train,
-        y_train,
-        eval_set=[(X_valid, y_valid)],
-        verbose=False,
-    )
-
-    y_valid_prob = clf.predict_proba(X_valid)[:, 1]
-    metrics = compute_metrics(y_valid.to_numpy(), y_valid_prob, threshold=args.threshold)
-
-    metrics_path = args.output_dir / "metrics.json"
-    metrics_path.write_text(json.dumps(metrics, indent=2))
-
-    prediction_df = pd.DataFrame(
-        {
-            "entity_id": entity_valid.values,
-            "label": y_valid.to_numpy(),
-            "probability": y_valid_prob,
-            "prediction": (y_valid_prob >= args.threshold).astype(int),
-        }
-    )
-    prediction_df.to_csv(args.output_dir / "validation_predictions.csv", index=False)
-
-    model_path = args.output_dir / "xgboost_model.json"
-    clf.get_booster().save_model(model_path)
-
-    feature_importance = pd.Series(
-        clf.feature_importances_, index=X_train.columns, name="importance"
-    ).sort_values(ascending=False)
-    feature_importance.to_csv(args.output_dir / "feature_importance.csv")
-
-    print(f"✅ Metrics saved to {metrics_path}")
-    print(f"✅ Model saved to {model_path}")
+    paths = result["artifact_paths"]
+    print(f"✅ Metrics saved to {paths['metrics']}")
+    print(f"✅ Model saved to {paths['model']}")
 
 
 if __name__ == "__main__":

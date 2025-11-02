@@ -22,3 +22,11 @@ FusionGuard Analytics demonstrates an end-to-end workflow for credit card fraud 
 8. **MLOps & Automation** – Leverage MLflow, Prefect/Airflow, Great Expectations, and Docker; prepare train/deploy pipelines; target low-cost Cloud Run deployment.
 9. **Monitoring & Responsible AI** – Implement data/ performance drift detection (`src/monitoring/`); prototype dashboard (Streamlit/Panel); author `docs/responsible_ai.md`.
 10. **Demo & Docs** – Finalise README, architecture visuals, reproduction guide, pitch deck (`slides/`), exec summary, and zero-cost playbook; produce video/GIF walkthrough.
+
+## Documentation Index (`docs/`)
+
+- `data_sources.md` – Kaggle dataset references, licences, and download guidance.
+- `data_quality_checks.md` – Candidate validation rules to be implemented with Great Expectations.
+- `fraud_model_card.md` – Detailed fraud modelling summary, metrics, and SHAP insights (Step 5 deliverable).
+- `fraud_serving.md` – Benchmark methodology, latency/cost analysis, and serving recommendations.
+- `assets/fraud/` – Generated SHAP visuals and tabular importance export.
