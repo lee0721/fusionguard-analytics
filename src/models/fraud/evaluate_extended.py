@@ -7,7 +7,7 @@ import argparse
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, Tuple
+from typing import Any, Dict, Iterable, Tuple
 
 import matplotlib
 
@@ -197,8 +197,17 @@ def main() -> None:
         "autoencoder": evaluate_autoencoder(args.autoencoder_scores, output_dir, args.n_bins, args.threshold_steps),
     }
 
+    def _to_serializable(obj: Any) -> Any:
+        if isinstance(obj, dict):
+            return {k: _to_serializable(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [_to_serializable(v) for v in obj]
+        if isinstance(obj, Path):
+            return str(obj)
+        return obj
+
     summary_path = output_dir / "evaluation_extended.json"
-    summary_path.write_text(json.dumps(results, indent=2))
+    summary_path.write_text(json.dumps(_to_serializable(results), indent=2))
     print(f"✅ Extended evaluation saved to {summary_path}")
 
 
