@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""End-to-end fraud model training orchestration pipeline."""
+"""End-to-end fraud and churn model training orchestration pipeline."""
 
 from __future__ import annotations
 
@@ -15,6 +15,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from src.models.churn.train_lightgbm import train_lightgbm as train_churn_lightgbm
 from src.models.fraud.explain_xgboost import generate_shap
 from src.models.fraud.train_autoencoder import train_autoencoder
 from src.models.fraud.train_xgboost import train_xgboost
@@ -56,6 +57,24 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default="cuda",
         help="Device for autoencoder training (e.g., cuda or cpu).",
+    )
+    parser.add_argument(
+        "--skip-churn",
+        action="store_true",
+        help="Skip the churn LightGBM training step.",
+    )
+    parser.add_argument(
+        "--churn-lightgbm-dir",
+        type=Path,
+        default=Path("artifacts/churn/lightgbm"),
+        help="Output directory for churn LightGBM artifacts.",
+    )
+    parser.add_argument(
+        "--churn-device",
+        type=str,
+        default="cpu",
+        choices=["cpu", "gpu"],
+        help="Device for churn LightGBM training.",
     )
     parser.add_argument(
         "--summary-path",
@@ -103,6 +122,15 @@ def maybe_log_to_mlflow(
                 "ae_precision": summary["autoencoder"]["metrics"]["precision"],
                 "ae_recall": summary["autoencoder"]["metrics"]["recall"],
                 "ae_aucpr": summary["autoencoder"]["metrics"]["average_precision"],
+                **(
+                    {
+                        "churn_precision": summary["churn"]["metrics"]["precision"],
+                        "churn_recall": summary["churn"]["metrics"]["recall"],
+                        "churn_aucpr": summary["churn"]["metrics"]["average_precision"],
+                    }
+                    if "churn" in summary and "metrics" in summary["churn"]
+                    else {}
+                ),
             }
         )
         # Parameters
@@ -112,6 +140,14 @@ def maybe_log_to_mlflow(
                 "xgb_threshold": summary["xgboost"]["metrics"]["threshold"],
                 "autoencoder_device": summary["autoencoder"]["device"],
                 "sample_size_shap": summary["shap"]["sample_size"],
+                **(
+                    {
+                        "churn_threshold": summary["churn"]["metrics"]["threshold"],
+                        "churn_device": summary["churn"]["device"],
+                    }
+                    if "churn" in summary and "metrics" in summary["churn"]
+                    else {}
+                ),
             }
         )
         for label, path in artifact_paths.items():
@@ -145,6 +181,19 @@ def main() -> None:
     )
     summary["autoencoder"] = ae_result
 
+    churn_result = None
+    if args.skip_churn:
+        print("⚠️ Skipping churn LightGBM training step (per --skip-churn flag).")
+        summary["churn"] = {"skipped": True}
+    else:
+        print("🚀 Training LightGBM churn model...")
+        churn_result = train_churn_lightgbm(
+            feature_store=args.feature_store,
+            output_dir=args.churn_lightgbm_dir,
+            device=args.churn_device,
+        )
+        summary["churn"] = churn_result
+
     print("🧮 Generating SHAP explainability for XGBoost...")
     shap_result = generate_shap(
         feature_store=args.feature_store,
@@ -165,6 +214,14 @@ def main() -> None:
         "autoencoder_metrics": Path(ae_result["artifact_paths"]["metrics"]),
         "shap": Path(shap_result["artifact_paths"]["importance_csv"]),
     }
+    if churn_result:
+        artifact_paths.update(
+            {
+                "churn_model": Path(churn_result["artifact_paths"]["model"]),
+                "churn_metrics": Path(churn_result["artifact_paths"]["metrics"]),
+                "churn_predictions": Path(churn_result["artifact_paths"]["predictions"]),
+            }
+        )
 
     maybe_log_to_mlflow(
         args.mlflow_tracking_uri,
