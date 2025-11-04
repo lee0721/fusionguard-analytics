@@ -19,7 +19,7 @@ FusionGuard Analytics demonstrates an end-to-end workflow for credit card fraud 
 5. **Fraud Modelling** – Train XGBoost and PyTorch autoencoder (`src/models/fraud/`); evaluate Precision-Recall/AUCPR; generate SHAP explainability; summarise outcomes in `docs/fraud_model_card.md`.
 6. **Churn Modelling** – Train LightGBM/CatBoost churn models (`src/models/churn/train_lightgbm.py`); deliver metrics, feature importances, and business insights.
 7. **Generative Module** – FastAPI assistance endpoint (`src/agent/service.py`) with retrieval over project docs, optional llama.cpp integration, and safety-aware prompting (see `docs/agent_service.md`).
-8. **MLOps & Automation** – Leverage MLflow, Prefect/Airflow, Great Expectations, and Docker; prepare train/deploy pipelines; target low-cost Cloud Run deployment.
+8. **MLOps & Automation** – MLflow-enabled training pipeline with Great Expectations validation, Prefect flow orchestration, Docker packaging, and Cloud Run deployment helpers (`mlops/train_pipeline.py`, `mlops/deploy_pipeline.py`, `mlops/prefect_flow.py`, see `docs/mlops_deployment.md`).
 9. **Monitoring & Responsible AI** – Implement data/ performance drift detection (`src/monitoring/`); prototype dashboard (Streamlit/Panel); author `docs/responsible_ai.md`.
 10. **Demo & Docs** – Finalise README, architecture visuals, reproduction guide, pitch deck (`slides/`), exec summary, and zero-cost playbook; produce video/GIF walkthrough.
 
@@ -30,5 +30,22 @@ FusionGuard Analytics demonstrates an end-to-end workflow for credit card fraud 
 - `fraud_model_card.md` – Detailed fraud modelling summary, metrics, and SHAP insights (Step 5 deliverable).
 - `churn_model_card.md` – LightGBM churn modelling summary and business insights (Step 6 deliverable).
 - `agent_service.md` – FastAPI generative assistant design, deployment notes, and persona guidance (Step 7 deliverable).
+- `mlops_deployment.md` – Experiment tracking, validation, Prefect orchestration, and Cloud Run deployment guidance (Step 8 deliverable).
 - `fraud_serving.md` – Benchmark methodology, latency/cost analysis, and serving recommendations.
 - `assets/fraud/` – Generated SHAP visuals and tabular importance export.
+
+## CREATE HPC Training Quickstart
+
+- Request an interactive session (interruptible queue starts fastest):  
+  `srun --pty -p interruptible_cpu -t 01:00:00 -c 8 --mem=32G bash`
+- Initialise dependencies on the compute node:  
+  `export JAVA_HOME=/scratch/users/<id>/opt/java/jdk-17.0.11+9`  
+  `export PATH=$JAVA_HOME/bin:$PATH`  
+  `export SPARK_LOCAL_IP=$(hostname -I | awk '{print $1}')`  
+  `export PYSPARK_PYTHON=$(which python)`  
+  `source .venv_hpc/bin/activate`
+- Run the Step 8 pipeline (logs to MLflow experiment `fusionguard-fraud` and writes artifacts under `artifacts/`):  
+  ``python mlops/train_pipeline.py --refresh-feature-store --mlflow-run-name "hpc-train-$(date +%F)" --autoencoder-device cuda``
+  (CUDA is requested but the script automatically falls back to CPU if GPUs are unavailable.)
+- Sync outputs back to your laptop when finished:  
+  `rsync -av --delete create:~/fusionguard-analytics/ ~/Desktop/project/fusionguard-analytics/`

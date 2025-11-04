@@ -1,0 +1,15 @@
+.git
+.gitignore
+__pycache__/
+*.pyc
+.mypy_cache/
+.pytest_cache/
+notebooks/
+slides/
+hpc-logs/
+artifacts/
+data/raw/
+data/processed/
+mlruns/
+.venv/
+.venv_hpc/

@@ -15,10 +15,15 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from mlops.data_validation import validate_feature_store
 from src.models.churn.train_lightgbm import train_lightgbm as train_churn_lightgbm
 from src.models.fraud.explain_xgboost import generate_shap
 from src.models.fraud.train_autoencoder import train_autoencoder
 from src.models.fraud.train_xgboost import train_xgboost
+
+
+DEFAULT_MLFLOW_STORE = PROJECT_ROOT / "artifacts" / "mlruns"
+DEFAULT_VALIDATION_REPORT = PROJECT_ROOT / "artifacts" / "validation" / "feature_store_validation.json"
 
 
 def parse_args() -> argparse.Namespace:
@@ -77,14 +82,34 @@ def parse_args() -> argparse.Namespace:
         help="Device for churn LightGBM training.",
     )
     parser.add_argument(
+        "--skip-validation",
+        action="store_true",
+        help="Skip Great Expectations validation of the feature store.",
+    )
+    parser.add_argument(
+        "--validation-report",
+        type=Path,
+        default=DEFAULT_VALIDATION_REPORT,
+        help="Where to write the Great Expectations validation result (JSON).",
+    )
+    parser.add_argument(
         "--summary-path",
         type=Path,
         default=Path("artifacts/fraud/pipeline_summary.json"),
         help="File to write consolidated pipeline results.",
     )
-    parser.add_argument("--mlflow-tracking-uri", type=str, help="Optional MLflow tracking URI.")
+    parser.add_argument(
+        "--mlflow-tracking-uri",
+        type=str,
+        help="Override MLflow tracking URI. Defaults to a local ./artifacts/mlruns store.",
+    )
     parser.add_argument("--mlflow-experiment", type=str, default="fusionguard-fraud")
     parser.add_argument("--mlflow-run-name", type=str, default="fraud-train-pipeline")
+    parser.add_argument(
+        "--no-mlflow",
+        action="store_true",
+        help="Disable MLflow logging even if a tracking URI is available.",
+    )
     return parser.parse_args()
 
 
@@ -155,57 +180,85 @@ def maybe_log_to_mlflow(
                 mlflow.log_artifact(str(path), artifact_path=label)
 
 
-def main() -> None:
-    args = parse_args()
+def run_training_pipeline(
+    *,
+    refresh_feature_store: bool = False,
+    feature_store: Path = Path("data/feature_store.parquet"),
+    fraud_xgb_dir: Path = Path("artifacts/fraud/xgboost"),
+    fraud_autoencoder_dir: Path = Path("artifacts/fraud/autoencoder"),
+    shap_output: Path = Path("docs/assets/fraud"),
+    autoencoder_device: str = "cuda",
+    skip_churn: bool = False,
+    churn_lightgbm_dir: Path = Path("artifacts/churn/lightgbm"),
+    churn_device: str = "cpu",
+    validate_data: bool = True,
+    validation_report: Path | None = DEFAULT_VALIDATION_REPORT,
+    mlflow_tracking_uri: Optional[str] = None,
+    mlflow_experiment: str = "fusionguard-fraud",
+    mlflow_run_name: str = "fraud-train-pipeline",
+) -> Dict[str, object]:
+    """Execute the end-to-end training pipeline and return a summary dictionary."""
+
     summary: Dict[str, object] = {"timestamp": datetime.utcnow().isoformat()}
 
-    if args.refresh_feature_store:
+    if refresh_feature_store:
         print("🔄 Refreshing feature store...")
-        run_feature_store(args.feature_store)
+        run_feature_store(feature_store)
         summary["feature_store_refreshed"] = True
     else:
         summary["feature_store_refreshed"] = False
 
+    validation_info: Dict[str, object]
+    if validate_data:
+        print("🧪 Validating feature store with Great Expectations...")
+        validation_result = validate_feature_store(
+            feature_store_path=feature_store,
+            report_path=validation_report,
+        )
+        validation_info = {
+            "success": validation_result.get("success", False),
+            "statistics": validation_result.get("statistics"),
+            "report_path": str(validation_report) if validation_report else None,
+        }
+    else:
+        validation_info = {"skipped": True}
+    summary["validation"] = validation_info
+
     print("🚀 Training XGBoost model...")
     xgb_result = train_xgboost(
-        feature_store=args.feature_store,
-        output_dir=args.fraud_xgb_dir,
+        feature_store=feature_store,
+        output_dir=fraud_xgb_dir,
     )
     summary["xgboost"] = xgb_result
 
     print("🚀 Training Autoencoder...")
     ae_result = train_autoencoder(
-        feature_store=args.feature_store,
-        output_dir=args.fraud_autoencoder_dir,
-        device=args.autoencoder_device,
+        feature_store=feature_store,
+        output_dir=fraud_autoencoder_dir,
+        device=autoencoder_device,
     )
     summary["autoencoder"] = ae_result
 
     churn_result = None
-    if args.skip_churn:
+    if skip_churn:
         print("⚠️ Skipping churn LightGBM training step (per --skip-churn flag).")
         summary["churn"] = {"skipped": True}
     else:
         print("🚀 Training LightGBM churn model...")
         churn_result = train_churn_lightgbm(
-            feature_store=args.feature_store,
-            output_dir=args.churn_lightgbm_dir,
-            device=args.churn_device,
+            feature_store=feature_store,
+            output_dir=churn_lightgbm_dir,
+            device=churn_device,
         )
         summary["churn"] = churn_result
 
     print("🧮 Generating SHAP explainability for XGBoost...")
     shap_result = generate_shap(
-        feature_store=args.feature_store,
+        feature_store=feature_store,
         model_path=xgb_result["artifact_paths"]["model"],
-        output_dir=args.shap_output,
+        output_dir=shap_output,
     )
     summary["shap"] = shap_result
-
-    # Write summary
-    args.summary_path.parent.mkdir(parents=True, exist_ok=True)
-    args.summary_path.write_text(json.dumps(summary, indent=2, default=str))
-    print(f"✅ Pipeline summary written to {args.summary_path}")
 
     artifact_paths = {
         "xgboost": Path(xgb_result["artifact_paths"]["model"]),
@@ -223,13 +276,56 @@ def main() -> None:
             }
         )
 
+    if validation_report and validation_report.exists():
+        artifact_paths["validation_report"] = validation_report
+
     maybe_log_to_mlflow(
-        args.mlflow_tracking_uri,
-        args.mlflow_experiment,
-        args.mlflow_run_name,
+        mlflow_tracking_uri,
+        mlflow_experiment,
+        mlflow_run_name,
         summary,
         artifact_paths,
     )
+
+    summary["artifact_paths"] = {key: str(path) for key, path in artifact_paths.items()}
+    return summary
+
+
+def main() -> None:
+    args = parse_args()
+
+    if args.no_mlflow:
+        tracking_uri: Optional[str] = None
+    else:
+        if args.mlflow_tracking_uri:
+            tracking_uri = args.mlflow_tracking_uri
+        else:
+            DEFAULT_MLFLOW_STORE.mkdir(parents=True, exist_ok=True)
+            tracking_uri = f"file://{DEFAULT_MLFLOW_STORE.resolve()}"
+
+    validation_report = None if args.skip_validation else args.validation_report
+
+    summary = run_training_pipeline(
+        refresh_feature_store=args.refresh_feature_store,
+        feature_store=args.feature_store,
+        fraud_xgb_dir=args.fraud_xgb_dir,
+        fraud_autoencoder_dir=args.fraud_autoencoder_dir,
+        shap_output=args.shap_output,
+        autoencoder_device=args.autoencoder_device,
+        skip_churn=args.skip_churn,
+        churn_lightgbm_dir=args.churn_lightgbm_dir,
+        churn_device=args.churn_device,
+        validate_data=not args.skip_validation,
+        validation_report=validation_report,
+        mlflow_tracking_uri=tracking_uri,
+        mlflow_experiment=args.mlflow_experiment,
+        mlflow_run_name=args.mlflow_run_name,
+    )
+
+    # Write summary
+    args.summary_path.parent.mkdir(parents=True, exist_ok=True)
+    args.summary_path.write_text(json.dumps(summary, indent=2, default=str))
+    print(f"✅ Pipeline summary written to {args.summary_path}")
 
 
 if __name__ == "__main__":
