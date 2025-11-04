@@ -33,6 +33,7 @@ FusionGuard Analytics demonstrates an end-to-end workflow for credit card fraud 
 - `mlops_deployment.md` – Experiment tracking, validation, Prefect orchestration, and Cloud Run deployment guidance (Step 8 deliverable).
 - `fraud_serving.md` – Benchmark methodology, latency/cost analysis, and serving recommendations.
 - `assets/fraud/` – Generated SHAP visuals and tabular importance export.
+- `responsible_ai.md` – Responsible AI governance, bias mitigation workflow, and compliance guardrails (Step 9 deliverable).
 
 ## CREATE HPC Training Quickstart
 
@@ -49,3 +50,10 @@ FusionGuard Analytics demonstrates an end-to-end workflow for credit card fraud 
   (CUDA is requested but the script automatically falls back to CPU if GPUs are unavailable.)
 - Sync outputs back to your laptop when finished:  
   `rsync -av --delete create:~/fusionguard-analytics/ ~/Desktop/project/fusionguard-analytics/`
+
+## Drift Monitoring Demo
+
+- Launch the Streamlit dashboard locally:  
+  `streamlit run src/monitoring/dashboard.py`
+- The app samples the latest feature store, compares reference vs. current segments, and surfaces PSI/KS alerts alongside simulated KPI drift.
+- Default threshold settings flag alerts when PSI ≥ 0.2 or KPI deltas exceed ±2pp; tweak values in the sidebar to explore mitigation strategies.
