@@ -10,6 +10,31 @@ FusionGuard Analytics demonstrates an end-to-end workflow for credit card fraud 
 - Notebooks for exploratory analysis (`notebooks/eda`)
 - Documentation (`docs`) covering data sources, responsible AI, and executive summaries
 
+## Architecture Overview
+
+```
+┌──────────────┐      ┌─────────────────┐      ┌───────────────────────┐
+│ Kaggle Datasets ──▶ │ Spark ETL Jobs  │ ──▶ │ Unified Feature Store │
+└──────────────┘      │ (`src/data`)    │      │ (`data/feature_store`)│
+                      └────────┬────────┘      └───────────┬──────────┘
+                               │                           │
+                               │                ┌──────────▼──────────┐
+                               │                │ Model Training &     │
+                               │                │ Experiment Tracking  │
+                               │                │ (`mlops/train_*.py`, │
+                               │                │  MLflow, SHAP)       │
+                               │                └──────────┬──────────┘
+                               │                           │
+                      ┌────────▼────────┐        ┌─────────▼─────────┐
+                      │ FastAPI Agent   │        │ Monitoring &       │
+                      │ + llama.cpp     │        │ Responsible AI     │
+                      │ (`src/agent`)   │        │ (`src/monitoring`, │
+                      │                 │        │  `docs/…`)         │
+                      └────────┬────────┘        └─────────┬─────────┘
+                               │                           │
+                               └────────► Deployment (Docker, Cloud Run, Prefect)
+```
+
 ## Roadmap Overview
 
 1. **Project Bootstrap** – Plan repository (`data/raw`, `notebooks/eda`, `src/data`, `src/models`, `mlops`, `docs`); stand up Python env with pyspark, scikit-learn, xgboost, lightgbm, mlflow, fastapi, shap, great_expectations.
@@ -57,3 +82,36 @@ FusionGuard Analytics demonstrates an end-to-end workflow for credit card fraud 
   `streamlit run src/monitoring/dashboard.py`
 - The app samples the latest feature store, compares reference vs. current segments, and surfaces PSI/KS alerts alongside simulated KPI drift.
 - Default threshold settings flag alerts when PSI ≥ 0.2 or KPI deltas exceed ±2pp; tweak values in the sidebar to explore mitigation strategies.
+
+## Reproduction Guide
+
+1. **Clone & Environment**
+   - `git clone https://github.com/lee0721/fusionguard-analytics.git`
+   - `python3.11 -m venv .venv && source .venv/bin/activate`
+   - `pip install -r requirements.txt`
+
+2. **Fetch Datasources**
+   - Populate `data/raw/` via Kaggle API (creditcardfraud & bank-customer-churn); see `docs/data_sources.md`.
+
+3. **Feature Engineering**
+   - Local quick run: `python src/data/build_feature_store.py --feature-store data/feature_store.parquet`
+   - HPC scalable run: follow the “CREATE HPC Training Quickstart” section (Spark cluster ready).
+
+4. **Model Training & Tracking**
+   - `python mlops/train_pipeline.py --refresh-feature-store --mlflow-run-name "local-dev"`
+   - Inspect MLflow runs at `mlflow ui --backend-store-uri artifacts/mlruns`.
+
+5. **API & Monitoring**
+   - Launch agent service: `uvicorn src.agent.service:app --reload`
+   - Start drift dashboard: `streamlit run src/monitoring/dashboard.py`
+
+6. **Deployment (Optional)**
+   - Build container: `docker build -t fusionguard-agent:latest .`
+   - Deploy with helper: `python mlops/deploy_pipeline.py --image gcr.io/<project>/fusionguard-agent:latest --project <gcp-project> --push --deploy --allow-unauthenticated`
+
+## Zero-Cost Strategy
+
+- **Compute**: heavy Spark preprocessing and model retraining execute on King’s CREATE HPC interruptible queues (no direct cloud spend). Local development uses laptop CPU/GPU.
+- **Serving**: container targets Cloud Run with `--min-instances 0`, so inference scales to zero outside demo hours.
+- **Storage**: feature store and artifacts reside in repo-friendly parquet/CSV; MLflow runs default to the filesystem (`artifacts/mlruns`) rather than paid hosted tracking.
+- **Tooling**: all frameworks are OSS (PySpark, MLflow, Streamlit, llama.cpp). Monitoring dashboard runs locally or on HPC Jupyter nodes without SaaS fees.
