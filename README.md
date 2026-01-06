@@ -12,27 +12,23 @@ FusionGuard Analytics demonstrates an end-to-end workflow for credit card fraud 
 
 ## Architecture Overview
 
-```
-┌──────────────┐      ┌─────────────────┐      ┌───────────────────────┐
-│ Kaggle Datasets ──▶ │ Spark ETL Jobs  │ ──▶ │ Unified Feature Store │
-└──────────────┘      │ (`src/data`)    │      │ (`data/feature_store`)│
-                      └────────┬────────┘      └───────────┬──────────┘
-                               │                           │
-                               │                ┌──────────▼──────────┐
-                               │                │ Model Training &     │
-                               │                │ Experiment Tracking  │
-                               │                │ (`mlops/train_*.py`, │
-                               │                │  MLflow, SHAP)       │
-                               │                └──────────┬──────────┘
-                               │                           │
-                      ┌────────▼────────┐        ┌─────────▼─────────┐
-                      │ FastAPI Agent   │        │ Monitoring &       │
-                      │ + llama.cpp     │        │ Responsible AI     │
-                      │ (`src/agent`)   │        │ (`src/monitoring`, │
-                      │                 │        │  `docs/…`)         │
-                      └────────┬────────┘        └─────────┬─────────┘
-                               │                           │
-                               └────────► Deployment (Docker, Cloud Run, Prefect)
+```mermaid
+flowchart LR
+  raw[Kaggle Datasets]
+  etl[Spark ETL Jobs<br/>(`src/data`)]
+  fs[Unified Feature Store<br/>(`data/feature_store`)]
+  train[Model Training & Experiment Tracking<br/>(`mlops/train_*.py`, MLflow, SHAP)]
+  agent[FastAPI Agent + llama.cpp<br/>(`src/agent`)]
+  monitor[Monitoring & Responsible AI<br/>(`src/monitoring`, `docs/…`)]
+  deploy[Deployment<br/>(Docker, Cloud Run, Prefect)]
+
+  raw --> etl --> fs --> train
+  fs --> agent
+  fs --> monitor
+  train --> agent
+  train --> monitor
+  agent --> deploy
+  monitor --> deploy
 ```
 
 ## Roadmap Overview
