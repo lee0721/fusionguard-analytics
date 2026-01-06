@@ -15,12 +15,12 @@ FusionGuard Analytics demonstrates an end-to-end workflow for credit card fraud 
 ```mermaid
 flowchart LR
   raw[Kaggle Datasets]
-  etl[Spark ETL Jobs<br/>(`src/data`)]
-  fs[Unified Feature Store<br/>(`data/feature_store`)]
-  train[Model Training & Experiment Tracking<br/>(`mlops/train_*.py`, MLflow, SHAP)]
-  agent[FastAPI Agent + llama.cpp<br/>(`src/agent`)]
-  monitor[Monitoring & Responsible AI<br/>(`src/monitoring`, `docs/…`)]
-  deploy[Deployment<br/>(Docker, Cloud Run, Prefect)]
+  etl[Spark ETL Jobs (src/data)]
+  fs[Unified Feature Store (data/feature_store)]
+  train[Model Training & Experiment Tracking (mlops/train_*.py, MLflow, SHAP)]
+  agent[FastAPI Agent + llama.cpp (src/agent)]
+  monitor[Monitoring & Responsible AI (src/monitoring, docs/…)]
+  deploy[Deployment (Docker, Cloud Run, Prefect)]
 
   raw --> etl --> fs --> train
   fs --> agent
